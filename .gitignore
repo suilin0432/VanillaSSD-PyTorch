@@ -1,0 +1,4 @@
+*.jpg
+*.pth
+test/*
+*test
