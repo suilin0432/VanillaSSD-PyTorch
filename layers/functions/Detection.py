@@ -47,6 +47,7 @@ class Detect(Function):
         # 对每个batch进行
         for i in range(num):
             # 输入 预测的位置信息, 先验框信息, 以及variance
+            # PS:decode 后得到的是 左上 右下格式的boxes
             decoded_boxes = decode(loc_data[i], prior_data, self.variance)
             # 对每个class 进行nms的处理
             conf_scores = conf_preds[i].clone()
@@ -80,7 +81,8 @@ class Detect(Function):
         _flt = flt.view(-1, 5)
         _idx = idx.view(-1)[:200]
 
-        return flt[_idx]
+        # 这是我修改的, 返回分数最高的200个框 下面注释掉的是原来的
+        return _flt[_idx]
         # _, rank = idx.sort(1)
         # flt[(rank < self.top_k).unsqueeze(-1).expand_as(flt)].fill_(0)
         # return output
