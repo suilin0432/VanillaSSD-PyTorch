@@ -29,3 +29,11 @@ class SSD(nn.Module):
         self.cfg = (coco, voc)[num_classes == 21]
         # 创建先验框类
         self.priorbox = PriorBox(self.cfg)
+        # 这里因为 pytorch1.0 将Tensor和Variable进行了合并, 所以用Tensor了 然后计算的时候记得要用 torch.no_grad()
+        self.priors = torch.Tensor(self.priorbox.forward())
+        self.size = size
+
+        # SSD network
+        self.vgg = nn.ModuleList(base)
+        # 将 conv4_3 层的输出进行 L2 Normalized的 Layer
+        self.L2Norm = L2Norm(512, 20)
