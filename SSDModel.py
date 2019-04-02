@@ -18,7 +18,7 @@ class SSD(nn.Module):
         :param phase:  test / train 表明状态
         :param size: input 的 image size
         :param base: VGG16 layers
-        :param extras: 额外天津爱的layers 用来生成multi-feature map的层
+        :param extras: 额外添加的layers 用来生成multi-feature map的层
         :param head: mutlibox head 由 loc 和 conf 的 conv 层构成
         :param num_classes: 类别
         """
@@ -37,3 +37,13 @@ class SSD(nn.Module):
         self.vgg = nn.ModuleList(base)
         # 将 conv4_3 层的输出进行 L2 Normalized的 Layer
         self.L2Norm = L2Norm(512, 20)
+        self.extras = nn.ModuleList(extras)
+
+        self.loc = nn.ModuleList(head[0])
+        self.conf = nn.ModuleList(head[1])
+
+        # 如果设置为 test 模式那么就进行一下softmax操作(SSD的类别损失函数计算的时候使用了softmax, PS:yolo好像只是简单地进行了sigmoid)
+        # 以及进行Detect操作
+        if phase == "test":
+            self.softmax = nn.Softmax(dim=-1)
+            self.detect = Detect(num_classes, 0,200, 0.01, 0.45)
