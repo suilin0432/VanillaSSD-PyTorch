@@ -46,4 +46,4 @@ class SSD(nn.Module):
         # 以及进行Detect操作
         if phase == "test":
             self.softmax = nn.Softmax(dim=-1)
-            self.detect = Detect(num_classes, 0,200, 0.01, 0.45)
+            self.detect = Detect(num_classes, 0,200, 0.01, 0.45, self.cfg)
