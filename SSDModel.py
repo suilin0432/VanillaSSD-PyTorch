@@ -27,5 +27,5 @@ class SSD(nn.Module):
         self.num_classes = num_classes
         # 如果 num_classes == 21 那么就是 (coco, voc)[True] == (coco, voc)[1] 选择的就是voc的配置
         self.cfg = (coco, voc)[num_classes == 21]
-        # 设置先验框
+        # 创建先验框类
         self.priorbox = PriorBox(self.cfg)
