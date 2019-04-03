@@ -34,6 +34,8 @@ def encode(matched, priors, variances):
     :param variances:
     :return:
     """
+    # PS: 不除以 variance 的部分就是正常的损失函数版本 因为学习参数是 t_x,t_y =  (g_cx - d_cx)/d_w, (g_cy - d_cy)/d_h
+    #     所以说只用 / variances是进行放大的部分 是和论文直接说的不一样的 但是论文作者在 caffe 版本也这么做了 而且 包括 fasterRcnn 等也都这么做了
     g_cxcy = (matched[:, :2] + matched[:, 2:]) / 2 - priors[:, :2]
     g_cxcy /= (variances[0] * priors[:,2:])
 
