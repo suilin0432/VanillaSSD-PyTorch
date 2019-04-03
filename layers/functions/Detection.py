@@ -37,8 +37,8 @@ class Detect(Function):
         num = loc_data.size(0)
         # 先验框个数 按照论文标准的是 8732个
         num_priors = prior_data.size(0)
-        # 输出 维度 batchSize, numClass, topK, 5
-        output = torch.zeros(num, self.num_classes, self.top_k, 5)
+        # 输出 维度 batchSize, numClass, topK, 6 相比于源代码扩展了一个 项 作为类别信息的存储
+        output = torch.zeros(num, self.num_classes, self.top_k, 6)
         # 将conf_data维度改为 batchSize, numPriors, numClasses
         # 然后将后两个维度倒置 -> batchSize, numClasses, numPriors 这么做是为了后面nms对类别处理方便
         conf_preds = conf_data.view(num, num_priors, self.num_classes).transpose(2, 1)
@@ -70,15 +70,17 @@ class Detect(Function):
                 # PS: 后面还会进行一个top_k 的筛选... 没有问题
                 ids, count = nms(boxes, scores, self.nms_thresh, self.top_k)
                 # 对output[当前batch, 当前class, 前检测到的个数] 进行赋值
-                # output 最后那个 维度 5 是按照 分数, cx, cy, w, h 进行排列的
-                output[i, cl, :count] = torch.cat((scores[ids[:count]].unsqueeze(1), boxes[ids[:count]]), 1)
-        # 最后调整output 到 batchSize, -1(numClass*top_k), 5 的形状
-        flt = output.contiguous().view(num, -1, 5)
+                # output 最后那个 维度 6 是按照 分数, cx, cy, w, h, 类别 进行排列的
+                classMessage = torch.zeros(count, 1)
+                torch.nn.init.constant(classMessage, cl)
+                output[i, cl, :count] = torch.cat((scores[ids[:count]].unsqueeze(1), boxes[ids[:count]], classMessage), 1)
+        # 最后调整output 到 batchSize, -1(numClass*top_k), 6 的形状
+        flt = output.contiguous().view(num, -1, 6)
         # 对flt按照分数进行排序 获取排序后的坐标顺序
         _, idx = flt[:, :, 0].sort(1, descending=True)
 
         # 取前200个框
-        _flt = flt.view(-1, 5)
+        _flt = flt.view(-1, 6)
         _idx = idx.view(-1)[:200]
 
         _flt = _flt[_idx]

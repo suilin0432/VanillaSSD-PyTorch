@@ -40,6 +40,7 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
         img = testset.pull_image(i)
         img_id, annotation = testset.pull_anno(i)
         # transform 进行图像的输入变换
+        # 测试的时候只是简单的进行了一下变换而已
         x = torch.from_numpy(transform(img)[0]).permute(2, 0, 1).contiguous()
 
         with open(filename, mode="a") as f:
@@ -67,7 +68,8 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
                 with open(filename, mode="a") as f:
                     f.write("PREDICTIONS: \n")
             score = detections[j, 0]
-            label_name = labelmap[i-1]
+            #
+            label_name = labelmap[scale[j, 5]]
             # 取出来所有的预测值 然后放大到原来的尺寸
             # 因为预测的值经过编码(encode)解码(decode)之后得到的仍然是相对于原图大小的比例，而原图进行resize好像 SSD并没又进行 像Yolo, fasterRcnn 一样的padding
             pt = (detections[0, i, j, 1:]*scale).cpu().numpy()
