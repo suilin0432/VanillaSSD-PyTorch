@@ -57,8 +57,11 @@ def nms(boxes, scores, nms_thresh=0.5, top_k=200):
     if boxes.numel() == 0:
         return keep
     # 获取左上 右下坐标
-    x1, y1 = boxes[:, 0:2]
-    x2, y2 = boxes[:, 2:4]
+    print(boxes, boxes.shape)
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
     area = torch.mul(x2 - x1, y2 - y1)
     v, idx = scores.sort(0)
     idx = idx[-top_k:] #获取 top_k个最高分对象

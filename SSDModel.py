@@ -133,7 +133,7 @@ def vgg(cfg, i, batch_norm=False):
     for v in cfg:
         if v == "M":
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
-        if v == "C":
+        elif v == "C":
             layers += [nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)]
         else:
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
@@ -223,3 +223,4 @@ mbox={
     "300": [4, 6, 6, 6, 4, 4],
     "512": [],
 }
+

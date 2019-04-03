@@ -82,7 +82,7 @@ class Detect(Function):
         _idx = idx.view(-1)[:200]
 
         # 这是我修改的, 返回分数最高的200个框 下面注释掉的是原来的
-        return _flt[_idx]
+        # return _flt[_idx]
         # _, rank = idx.sort(1)
         # flt[(rank < self.top_k).unsqueeze(-1).expand_as(flt)].fill_(0)
-        # return output
+        return output
