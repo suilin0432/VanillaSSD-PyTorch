@@ -166,9 +166,34 @@ def add_extras(cfg, i, batch_norm=False):
     return layers
 
 def multibox(vgg, extra_layers, cfg, num_classes):
+    """
+
+    :param vgg: 这里输入的是 vgg Layers 这个List
+    :param extra_layers: 这里输入的是 extra Layers 这个List
+    :param cfg: 这里输入的是 mbox数量那个配置文件List
+    :param num_classes: 类别数目
+    :return:
+    """
     loc_layers = []
     conf_layers = []
+    # TODO: 这里为什么，以及为什么extra层添加的都没有激活函数 直接全卷积... PS:这里没有损失函数可以理解, 预测不希望在这里将一些信息损失, 但是为什么extra层都没有激活函数
+    # PS: 取出来的是 conv4_3 没有进行relu之前的 conv之后的层
+    #     同样 fc7 (conv7) 取出来的也是 没有进行relu之前的conv7
     vgg_source = [21, -2]
+    for k, v in enumerate(vgg_source):
+        loc_layers += [nn.Conv2d(vgg[v].out_channels,
+                                 cfg[k] * 4, kernel_size=3, padding=1)]
+        conf_layers += [nn.Conv2d(vgg[v].out_channels,
+                                  cfg[k] * num_classes, kernel_size=3, padding=1)]
+
+    # enumerate 后面的那个2表示从2开始进行index 的值
+    for k, v in enumerate(extra_layers[1::2], 2):
+        loc_layers += [nn.Conv2d(v.out_channels, cfg[k]
+                                 * 4, kernel_size=3, padding=1)]
+        conf_layers += [nn.Conv2d(v.out_channels, cfg[k]
+                                  * num_classes, kernel_size=3, padding=1)]
+    return vgg, extra_layers, (loc_layers, conf_layers)
+
 
 #PS: 对 VGG base结构 进行解析
 """
