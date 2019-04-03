@@ -22,7 +22,6 @@ def decode(loc, priors, variances):
          priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])),1
     )
     # 解码之后就是 cx,cy: (matched[:2] + matched[2:])/2  w,h: (matched[:, 2:] - matched[:, :2])
-
     boxes[:, :2] -= boxes[:, 2:] / 2
     boxes[:, 2:] += boxes[:, :2]
     return boxes
@@ -57,7 +56,7 @@ def nms(boxes, scores, nms_thresh=0.5, top_k=200):
     if boxes.numel() == 0:
         return keep
     # 获取左上 右下坐标
-    print(boxes, boxes.shape)
+    # print(boxes, boxes.shape)
     x1 = boxes[:, 0]
     y1 = boxes[:, 1]
     x2 = boxes[:, 2]

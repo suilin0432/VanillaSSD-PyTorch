@@ -61,7 +61,6 @@ class SSD(nn.Module):
         # 23的原因在下面有介绍
         for k in range(23):
             x = self.vgg[k](x)
-
         s = self.L2Norm(x)
         sources.append(s)
 
@@ -90,6 +89,7 @@ class SSD(nn.Module):
         # 将所有featuremap的loc 和 conf进行拼接
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+
         if self.phase == "test":
             # 这里面置信系数 需要进行softmax操作, 但是cxcy,wh没有进行处理
             output = self.detect(

@@ -81,8 +81,10 @@ class Detect(Function):
         _flt = flt.view(-1, 5)
         _idx = idx.view(-1)[:200]
 
-        # 这是我修改的, 返回分数最高的200个框 下面注释掉的是原来的
-        # return _flt[_idx]
+        _flt = _flt[_idx]
+        _flt_mask = _flt[:,0].gt(self.conf_thresh)
+        # 这是我修改的, 返回分数最高的200个框 下面注释掉的是原来的(如果不足过滤掉置信系数 < conf_thresh的)
+        return _flt[_flt_mask]
         # _, rank = idx.sort(1)
         # flt[(rank < self.top_k).unsqueeze(-1).expand_as(flt)].fill_(0)
-        return output
+        # return output
