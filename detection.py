@@ -41,14 +41,14 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
         img_id, annotation = testset.pull_anno(i)
         # transform 进行图像的输入变换
         # 测试的时候只是简单的进行了一下变换而已
-        x = torch.from_numpy(transform(img)[0]).permute(2, 0, 1).contiguous()
+        x = torch.from_numpy(transform(img)).permute(2, 0, 1).contiguous().unsqueeze(0)
 
         with open(filename, mode="a") as f:
             f.write("\nGROUND TRUTH FOR: "+img_id+"\n")
             for box in annotation:
                 f.write("label: "+" || ".join(str(b) for b in box) + "\n")
 
-        if cuda:
+        if cuda and torch.cuda.is_available():
             x = x.cuda()
 
         y = net(x)
@@ -81,15 +81,18 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
             j += 1
 
 def test_voc():
-    os.environ["CUDA_VISIBLE_DEVICES"] = [0]
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     num_classes = len(VOC_CLASSES) + 1
     net = build_ssd("test", 300, num_classes)
-    net.load_state_dict(torch.load(args.trained_model))
+    if args.cuda and torch.cuda.is_available():
+        net.load_state_dict(torch.load(args.trained_model))
+    else:
+        net.load_state_dict(torch.load(args.trained_model, map_location="cpu"))
     net.eval()
     print("Finished loading model!")
 
     testset = VOCDetection(args.voc_root, [("2007", "test")], None, VOCAnnotationTransform())
-    if args.cuda:
+    if args.cuda and torch.cuda.is_available():
         net = net.cuda()
         net = nn.DataParallel(net)
         cudnn.benchmark = True
