@@ -63,16 +63,16 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
         # for i in range(detections.size(1)):
         j = 0
         # 小于 0.6 的被忽视了
-        while detections[j, 0] >= 0.6:
+        while j < detections.size(0) and detections[j, 0] >= 0.6:
             if pred_num == 0:
                 with open(filename, mode="a") as f:
                     f.write("PREDICTIONS: \n")
             score = detections[j, 0]
             #
-            label_name = labelmap[scale[j, 5]]
+            label_name = labelmap[int(detections[j, 5])-1]
             # 取出来所有的预测值 然后放大到原来的尺寸
             # 因为预测的值经过编码(encode)解码(decode)之后得到的仍然是相对于原图大小的比例，而原图进行resize好像 SSD并没又进行 像Yolo, fasterRcnn 一样的padding
-            pt = (detections[0, i, j, 1:]*scale).cpu().numpy()
+            pt = (detections[j, 1:5]*scale).cpu().numpy()
             coords = (pt[0], pt[1], pt[2], pt[3])
             pred_num += 1
             with open(filename, mode = "a") as f:

@@ -72,7 +72,7 @@ class Detect(Function):
                 # 对output[当前batch, 当前class, 前检测到的个数] 进行赋值
                 # output 最后那个 维度 6 是按照 分数, cx, cy, w, h, 类别 进行排列的
                 classMessage = torch.zeros(count, 1)
-                torch.nn.init.constant(classMessage, cl)
+                torch.nn.init.constant_(classMessage, cl)
                 output[i, cl, :count] = torch.cat((scores[ids[:count]].unsqueeze(1), boxes[ids[:count]], classMessage), 1)
         # 最后调整output 到 batchSize, -1(numClass*top_k), 6 的形状
         flt = output.contiguous().view(num, -1, 6)
