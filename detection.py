@@ -67,7 +67,7 @@ def test_net(save_folder, net, cuda, testset, transform, thresh, save):
         # for i in range(detections.size(1)):
         j = 0
         # 小于 0.6 的被忽视了
-        while j < detections.size(0) and detections[j, 0] >= 0.89:
+        while j < detections.size(0) and detections[j, 0] >= 0.6:
             if pred_num == 0:
                 with open(filename, mode="a") as f:
                     f.write("PREDICTIONS: \n")
@@ -93,7 +93,7 @@ def test_net(save_folder, net, cuda, testset, transform, thresh, save):
             j += 1
         if save:
             #保存图片
-            cv2.imwrite("{}.jpg".format(i), img)
+            cv2.imwrite("output/{}.jpg".format(i), img)
 
 def test_voc():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -116,8 +116,6 @@ def test_voc():
              BaseTransform(net.size, (104, 117, 123)),
              thresh=args.visual_threshold, save=True)
 
-def save_paint():
-    pass
 
 if __name__ == "__main__":
     test_voc()
