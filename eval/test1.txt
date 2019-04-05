@@ -5464,3 +5464,10 @@ PREDICTIONS:
 
 GROUND TRUTH FOR: 000067
 label: 43.0 || 71.0 || 449.0 || 209.0 || 0
+
+GROUND TRUTH FOR: 000001
+label: 47.0 || 239.0 || 194.0 || 370.0 || 11
+label: 7.0 || 11.0 || 351.0 || 497.0 || 14
+
+GROUND TRUTH FOR: 000002
+label: 138.0 || 199.0 || 206.0 || 300.0 || 18

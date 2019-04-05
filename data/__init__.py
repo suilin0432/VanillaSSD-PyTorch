@@ -5,6 +5,8 @@ from .voc0712 import VOCDetection, VOCAnnotationTransform, VOC_CLASSES, VOC_ROOT
 import torch
 import cv2
 import numpy as np
+# PS: 这个代码版本所有的训练数据都是用的 255 大小这个标准 没有将其规范化到 0-1 之间
+
 
 def detection_collate(batch):
     """

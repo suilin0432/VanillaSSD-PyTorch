@@ -110,6 +110,7 @@ class SSD(nn.Module):
         other, ext = os.path.splitext(base_file)
         if ext == ".pkl" or ".pth":
             print('Loading weights into state dict...')
+            # 这种map_location的方式代表强制使用CPU进行加载
             self.load_state_dict(torch.load(base_file,
                                             map_location=lambda storage, loc:storage))
             print("Loading weights finished!")
