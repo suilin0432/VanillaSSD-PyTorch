@@ -11,6 +11,9 @@ from PIL import Image
 from data import VOCAnnotationTransform, VOCDetection, BaseTransform, VOC_CLASSES
 import torch.utils.data as data
 from SSDModel import build_ssd
+import random
+import pickle as pkl
+import cv2
 
 parser = argparse.ArgumentParser(description="Vanilla SSD Pytorch")
 parser.add_argument("--trained_model", default="weights/ssd300_mAP_77.43_v2.pth", type=str, help="SSD的预训练.pth权重文件")
@@ -29,12 +32,13 @@ else:
 if not os.path.exists(args.save_folder):
     os.mkdir(args.save_folder)
 
-def test_net(save_folder, net, cuda, testset, transform, thresh):
+def test_net(save_folder, net, cuda, testset, transform, thresh, save):
 
     # 记录结果的文件名
     filename = save_folder+"test1.txt"
     # 获取测试图片数量
     num_images = len(testset)
+    colors = pkl.load(open("pallete", "rb"))
     for i in range(num_images):
         print("Testing image {:d}/{:d}...".format((i+1), num_images))
         img = testset.pull_image(i)
@@ -63,7 +67,7 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
         # for i in range(detections.size(1)):
         j = 0
         # 小于 0.6 的被忽视了
-        while j < detections.size(0) and detections[j, 0] >= 0.6:
+        while j < detections.size(0) and detections[j, 0] >= 0.89:
             if pred_num == 0:
                 with open(filename, mode="a") as f:
                     f.write("PREDICTIONS: \n")
@@ -75,10 +79,21 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
             pt = (detections[j, 1:5]*scale).cpu().numpy()
             coords = (pt[0], pt[1], pt[2], pt[3])
             pred_num += 1
+            if save:
+                color = random.choice(colors)
+                cv2.rectangle(img, (int(coords[0]), int(coords[1])), (coords[2], coords[3]), color, 1)
+                t_size = cv2.getTextSize(label_name, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
+                tCor = int(coords[0] + t_size[0] + 3), int(coords[1] + t_size[1] + 4)
+                cv2.rectangle(img, (int(coords[0]), int(coords[1])), tCor, color, -1)
+                cv2.putText(img, label_name, (int(coords[0]), int(tCor[1])), cv2.FONT_HERSHEY_PLAIN, 1, [255, 255, 255], 1)
+
             with open(filename, mode = "a") as f:
                 f.write(str(pred_num) + ' label: ' + label_name + ' score: ' +
                         str(score) + ' ' + ' || '.join(str(c) for c in coords) + '\n')
             j += 1
+        if save:
+            #保存图片
+            cv2.imwrite("{}.jpg".format(i), img)
 
 def test_voc():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -99,6 +114,10 @@ def test_voc():
 
     test_net(args.save_folder, net, args.cuda, testset,
              BaseTransform(net.size, (104, 117, 123)),
-             thresh=args.visual_threshold)
+             thresh=args.visual_threshold, save=True)
+
+def save_paint():
+    pass
+
 if __name__ == "__main__":
     test_voc()
