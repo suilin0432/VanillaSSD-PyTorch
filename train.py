@@ -60,7 +60,8 @@ def train():
         # 这里面VOCDetection除了变换操作没有使用默认设置其他的都是用了默认设置但是问题是 好像这里暂时没有VOC2012的数据...
         # TODO: 这里的SSDAugmentation还没有完成...
         # PS: cfg["min_dim"] 表示的图片的大小尺度
-        dataset = VOCDetection(root=args.dataset_root, transform=SSDAugmentation(cfg["min_dim"], MEANS))
+        # dataset = VOCDetection(root=args.dataset_root, transform=SSDAugmentation(cfg["min_dim"], MEANS))
+        dataset = VOCDetection(root=args.dataset_root, image_sets=[("2007", "trainval")])
 
     # 可视化工具的初始化
     if args.visdom:
@@ -85,7 +86,7 @@ def train():
         print("Loading base network...")
         ssd_net.vgg.load_state_dict(vgg_weights)
 
-    if args.cuda:
+    if args.cuda and torch.cuda.is_available():
         net = net.cuda()
 
     # 如果没有进行 resume的时候那么将所有模型的非backbone层(extra的层以及loc和conf添加的conv层)进行参数的初始化
@@ -99,7 +100,7 @@ def train():
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     # 损失函数计算类
     # TODO: 需要将这个MultiBoxLoss类进行完成
-    criterion = MultiBoxLoss(cfg['num_classes'], 0.5, True, 0, True, 3, 0.5, False, args.cuda)
+    criterion = MultiBoxLoss(cfg['num_class'], 0.5, True, 0, True, 3, 0.5, False, args.cuda)
 
     # 设置为训练模式
     net.train()
@@ -175,6 +176,14 @@ def train():
             print("timer: %.4f sec." % (t1 - t0))
             print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
 
+        if args.visdom:
+            update_vis_plot(viz, iteration, loss_l.data[0], loss_c.data[0], iter_plot, epoch_plot, "append")
+
+        # 每 500 个 iteration 进行一次参数信息的保存
+        if iteration != 0 and iteration % 5000 == 0:
+            print("Saving state, iter:",iteration)
+            torch.save(ssd_net.state_dict(), 'weights/ssd300_COCO_' +
+                       repr(iteration) + '.pth')
     # 迭代结束后进行weights的保存
     torch.save(ssd_net.state_dict(), args.save_folder+""+args.dataset+".pth")
 
@@ -220,3 +229,6 @@ def adjust_learning_rate(optimizer, gamma, step):
     lr = args.lr * (gamma ** (step))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+if __name__ == "__main__":
+    train()
