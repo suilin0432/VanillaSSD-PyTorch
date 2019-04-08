@@ -51,8 +51,41 @@ class MultiBoxLoss(nn.Module):
     def forward(self, predictions, targets):
         """
 
-        :param predictions:
-        :param targets:
-        :return:
+        :param predictions: 输入图片 x 经过 net 后产生的 predictions 信息
+        :param targets: 目标标签
+            conf_data: shape:(batchSize, numPriors, num_classes)
+            loc_data: shape:(batchSize, numPriors, 4)
+            priors: shape:(num_priors, 4)
         """
-        pass
+        # 获取 SSDModel 在 train 模式下的返回值 loc信息, conf信息 以及预测的 priors bbox 信息
+        # 下面的分别是 位置信息, 置信度信息, 先验框信息
+        loc_data, conf_data, priors = predictions
+        # 获取batchSize 数目
+        num = loc_data.size(0)
+        priors = priors[:loc_data.size(1), :]
+        # 获取numPrior 数目
+        num_priors = (priors.size(0))
+        num_classes = self.num_class
+
+        # 将每个priors与 ground truth boxes进行匹配
+        loc_t = torch.Tensor(num, num_priors, 4)
+        # 为什么是 LongTensor -> 因为 conf_t 一定是 0/1 因为是GT的
+        conf_t = torch.LongTensor(num, num_priors)
+        for idx in range(num):
+            # 单个batchSize 的 target是 [[lefttopx, y, rightdownx, y, 类别编号], [...], ...]
+            # 获取当前batch的所有不包含类别的标签 就是 所有的GT的两角坐标
+            truths = targets[idx][:, :-1].data
+            labels = targets[idx][:, -1].data
+            defaults = priors.data
+            # 进行匹配
+            # PS: list 什么的 在函数中传递的都是引用, 所以很明显的会被更改掉
+            match(self.threshold, truths, defaults, self.variance, labels, loc_t, conf_t, idx)
+        if self.use_gpu:
+            loc_t = loc_t.cuda()
+            conf_t = conf_t.cuda()
+
+        loc_t.requires_grad = False
+        conf_t.requires_grad = False
+
+        pos = conf_t > 0
+

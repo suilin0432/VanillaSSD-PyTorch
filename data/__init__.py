@@ -9,6 +9,7 @@ import numpy as np
 
 
 def detection_collate(batch):
+    # TODO: 这里好像没有reshape就进来了
     """
     自定义的用来处理包含不同个数的obj标签的函数(PS: 就是我上一次写YoloV3的时候
     遇到的问题: pytorch自带的DataLoader要求必须所有返回的维度是相同的)

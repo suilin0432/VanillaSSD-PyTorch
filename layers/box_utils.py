@@ -109,4 +109,17 @@ def nms(boxes, scores, nms_thresh=0.5, top_k=200):
         idx = idx[IoU.le(nms_thresh)]
     return keep, count
 
+def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
+    """
+    将每个 prior 框和 GT bbox 进行匹配, 然后encode bounding boxes, 最后返回(其实是直接赋值)匹配信息
+    :param threshold: IoU shreshold 阈值
+    :param truths: GT bbox shape:[]
+    :param priors:
+    :param variances:
+    :param labels:
+    :param loc_t:
+    :param conf_t:
+    :param idx:
+    :return:
+    """
 
