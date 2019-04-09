@@ -160,8 +160,8 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     :param priors: 先验框 shape:[priorNum, 4] 这个4 表示的是中心xy, 宽高
     :param variances: 配置中的variances, 用来进行梯度的放大
     :param labels: GT bbox 标签 shape:[GT_detection_number] 就是传入之前 target 分出来的一部分
-    :param loc_t: 对prior box匹配上的box的location数据
-    :param conf_t: 对prior box 匹配上的conf_t的数据
+    :param loc_t: 对prior box匹配上的box的location数据 shape:[batchSize, numPrior, 4]
+    :param conf_t: 对prior box 匹配上的conf_t的数据 shape:[batchSize, numPrior]
     :param idx: batch 序号, 进行的第idx个batch
     :return: 并没有直接的return值, 实际上是对 loc_t 和 conf_t 进行直接的修改, 然后就不用进行返回值了
     """
@@ -170,4 +170,31 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
         truths,
         point_form(priors)
     )
+    # 先匹配最佳匹配的项  因为overlaps的格式是[A,B]，且我们把 Truth 当做了A, prior当做了B, 因此我们想要找每个 GY 对应的
+    # 最佳的prior 需要 按照第一个维度进行取最大值
+    # PS: 原来的代码 用的是overlaps.max(1, keepdim=True) 然后后面又 squeeze_ 所以keepdim好像没什么必要, 就去掉了
+    # 维度 GT数量
+    best_prior_overlap, best_prior_idx = overlaps.max(1)
+    # 找和每个prior匹配的最好的 GT box
+    # 维度 prior数量
+    best_truth_overlap, best_truth_idx = overlaps.max(0)
+
+    # 因为best_prior_idx是GT匹配上的prior框的序号, best_prior_idx是prior上匹配到的GT的序号
+    # 现在我们要将 best_prior_idx 中 GT 匹配到的 最佳的 prior 框进行 匹配到的GT框的编号的设置
+    for j in range(best_prior_idx.size(0)):
+        best_truth_idx[best_prior_idx[j]] = j
+        # PS: 有一个问题, 就是会不会因为一个best_truth_overlap的值确实比较小, 但是其确实一个GT_box匹配的最好的, 这么的话就会被忽略了
+        # 所以在这里我强制更改一下 GT 匹配的最好的 那个框的 overlap直接为1
+        best_truth_overlap[best_prior_idx[j]] = 1
+    # shape: numPrior, 4
+    matches = truths[best_truth_idx]
+    conf = labels[best_truth_idx] + 1
+    # 将没有达到 threshold 的看做背景
+    conf[best_truth_overlap < threshold] = 0
+    # 进行编码 一是先将 左上右下点的格式 转变为 中心宽高的格式 然后进行中心点偏差的计算 以及宽高偏差计算, 具体信息看 paper 或者 笔记就可以了
+    # PS: 在Augumentation中已经将 GT 的坐标变成了相对坐标的格式了
+    loc = encode(matches, priors, variances)
+    # 进行传入的参数的赋值 python 传递的是引用, 直接可以用
+    loc_t[idx] = loc
+    conf_t[idx] = conf
 
