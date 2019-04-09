@@ -87,5 +87,23 @@ class MultiBoxLoss(nn.Module):
         loc_t.requires_grad = False
         conf_t.requires_grad = False
 
+        # PS: conf 其实拿到的是 label 序号 而不是置信度系数
+        # 所以这里判断的就是将背景排除掉
         pos = conf_t > 0
+        # pos shape: batchSize, numPriors, 1
+        num_pos = pos.sum(dim=1, keepdim=True)
+        # 还是不知道为什么要keepdim
+        # 扩充 pos 到 loc_data 的形状上,
+        pos_idx = pos.unsqueeze(pos.dim()).expand_as(loc_data)
+        # 将 loc_data 所有 batch 的 fore数据整合到一起
+        loc_p = loc_data[pos_idx].view(-1, 4)
+        # 同理处理 loc_t
+        loc_t = loc_t[pos_idx].view(-1, 4)
+        # loc_p 获取的是predict的数据 loc_t 则是每个prior 对应的GT数据
+        # 选择不进行size_average的原因是因为 最后才 /N ...
+        loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
+
+        # 将获取到的 conf 信息所有batch进行整合
+        batch_conf = conf_data.view(-1, self.num_classes)
+        loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
 

@@ -196,5 +196,6 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     loc = encode(matches, priors, variances)
     # 进行传入的参数的赋值 python 传递的是引用, 直接可以用
     loc_t[idx] = loc
+    # PS: conf 其实拿到的是 label 序号 而不是置信度系数
     conf_t[idx] = conf
 
