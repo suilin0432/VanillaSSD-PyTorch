@@ -65,7 +65,7 @@ class MultiBoxLoss(nn.Module):
         priors = priors[:loc_data.size(1), :]
         # 获取numPrior 数目
         num_priors = (priors.size(0))
-        num_classes = self.num_class
+        num_classes = self.num_classes
 
         # 将每个priors与 ground truth boxes进行匹配
         loc_t = torch.Tensor(num, num_priors, 4)
@@ -80,7 +80,7 @@ class MultiBoxLoss(nn.Module):
             # 进行匹配
             # PS: list 什么的 在函数中传递的都是引用, 所以很明显的会被更改掉
             match(self.threshold, truths, defaults, self.variance, labels, loc_t, conf_t, idx)
-        if self.use_gpu:
+        if self.use_gpu and torch.cuda.is_available():
             loc_t = loc_t.cuda()
             conf_t = conf_t.cuda()
 
@@ -101,9 +101,68 @@ class MultiBoxLoss(nn.Module):
         loc_t = loc_t[pos_idx].view(-1, 4)
         # loc_p 获取的是predict的数据 loc_t 则是每个prior 对应的GT数据
         # 选择不进行size_average的原因是因为 最后才 /N ...
+        # 计算边框的损失函数 smooth_l1_loss -> 在差距 <1 的时候是 1/2*(target-prediction)**2   >=1 的时候 L1 - 1/2
         loss_l = F.smooth_l1_loss(loc_p, loc_t, size_average=False)
 
         # 将获取到的 conf 信息所有batch进行整合
         batch_conf = conf_data.view(-1, self.num_classes)
+        # 计算
+        """
+            torch.target(input, dim, index, out=None)
+            意思是在指定的维度上进行其他维度元素的选择, 而不是按照原来的单一的维度进行选择, 而是按照你给定List的index进行当前维度的选择
+            dim 是索引的维度
+            index 是要进行聚合的下标
+            out[i][j][k] = tensor[index[i][j][k]][j][k]  # dim=0
+            eg:
+            a = torch.tensor([[1,2,3],[4,5,6]])
+            # a-> [ [1,2,3],
+            #       [4,5,6]]
+            b = a.gather(0, torch.LongTensor([[0,1,0]]))
+            # 表示选择 a[0,0], a[1,1], a[0,2]
+            # PS: index那个维度数量一定要和 a 对应
+        """
+        # 这里的 loss_c 不是计算 conf 的损失函数, 而是用来排序然后筛选出 hard_mining的个体
+        # log_sum_exp 的正常目的是应该 得到所有的 loss 的相对值
+        # batch_conf.gather(1, conf_t,view(-1,1)) 的目的是为了 获取其正确分类的实际得分
+        # TODO: 有点不明白为什么这么做???
+        # 所以这里的 loss_c 是 计算相对loss之后 还要减去其所属类别 所预测到的分数
+        # 其实batch_conf.gather(1, conf_t.view(-1, 1)) 的目的是为了找到最好的那个，但是实际因为进行的目的找到negative mining 所以其对应的就是0
         loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
+
+        # 这里原来的版本有一个Bug 把上下两行颠倒一下, 在这里保证维度的对齐就好了
+        loss_c = loss_c.view(num, -1)
+        # 进行hard_miner
+        # 将所有positive的框刨除
+        loss_c[pos] = 0
+        # 进行分数的排序  shape: [batchSize, numPrior] 因为要针对每张图片进行hardMining而不是一起进行
+        _, loss_idx = loss_c.sort(1, descending=True)
+        # 分数排序之后对 idx 号进行从小到大排序 目的是为了找到各个序号对应的下角标 也就是下角标对应数字 在分数排名的位置
+        _, idx_rank = loss_idx.sort(1)
+        # 获取postive的框的数量
+        num_pos = pos.long().sum(1, keepdim=True)
+        # 筛选出 hard mining 倍数的negative框, 但是不超过 框的数量
+        # TODO: 按照论文是应该不超过 200 个框吧...
+        num_neg = torch.clamp(self.negpos_ratio*num_pos, max=pos.size(1)-1)
+        # 筛选出进行hard mining的编号
+        neg = idx_rank < num_neg.expand_as(idx_rank)
+
+        # 开始进行conf_loss的计算
+        # 原来 pos shape:[num, numPriors] 仅仅表示这个对象是否是positive贡献的对象
+        # 将其扩充第三个维度到 shape:[num, numPriors, classNumber]
+        pos_idx = pos.unsqueeze(2).expand_as(conf_data)
+        # 同理进行neg 的扩充
+        neg_idx = neg.unsqueeze(2).expand_as(conf_data)
+        # 提取出来所有 对应位置 > 0 的数据 然后进行 view()
+        # 将shape [batchSize, ...] 的batchSize进行融合
+        conf_p = conf_data[(pos_idx + neg_idx).gt(0)].view(-1, self.num_classes)
+        targets_weighted = conf_t[(pos+neg).gt(0)] #获取正确的类别
+        # 计算conf_loss
+        loss_c = F.cross_entropy(conf_p, targets_weighted, size_average=False)
+
+        # 获取positive框的数量， 就是论文所说的匹配到的数目, 而不是所有的 贡献到损失函数中的数目
+        N = num_pos.data.sum()
+        loss_l /= N
+        loss_c /= N
+        return loss_l, loss_c
+
 

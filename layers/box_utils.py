@@ -199,3 +199,13 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     # PS: conf 其实拿到的是 label 序号 而不是置信度系数
     conf_t[idx] = conf
 
+def log_sum_exp(x):
+    """
+        PS: 网上找到了解释, 减去那个 x_max 是为了数值稳定性
+        目的是计算loss, 找到最大的 3 倍于 positive 数量的loss, 作为negative的loss贡献
+    """
+    # 找到所有数据中最大的那一个
+    x_max = x.data.max()
+    # 减去最大的那个并不会影响大小关系, 只是降低了值的关系
+    return torch.log(torch.sum(torch.exp(x-x_max), 1, keepdim=True)) + x_max
+
