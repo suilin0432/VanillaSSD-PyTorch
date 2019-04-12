@@ -233,7 +233,7 @@ class RandomSampleCrop(object):
     """
         Crop操作
         Arguments:
-            img: (Image)要用来进行训练的图片
+            img: (numpy.ndarray)要用来进行训练的图片
             boxes: (Tensor): GT box的坐标
             labels: (Tensor): GT box的类别标号
             mode(float tuple): 选择的jaccard overlaps的大小
@@ -244,6 +244,7 @@ class RandomSampleCrop(object):
             None,
             # crop 一个 patch 使其最小的 jaccard overlaps w/obj 是 0.1, 0.3 0.5, 0.7, 0.9
             # PS: 原来的实现中没有0.5这个选项, 但是论文中是有的
+            # 每个 IoU 都不要超过 那个设定的值, 但是最后筛选 box 的时候会将所有的 中心不在 patch 范围内的box删除掉
             (0.1, None),
             (0.3, None),
             (0.5, None),
@@ -253,5 +254,72 @@ class RandomSampleCrop(object):
             (None, None)
         )
 
+    def __call__(self, image, boxes=None, labels=None):
+        height, width, _ = image.shape
+        while True:
+            # 随机进行一个模式的选择
+            mode = random.choice(self.sample_options)
+            if mode is None:
+                # 不进行任何操作
+                return image, boxes, labels
+            min_iou, max_iou = mode
+            if min_iou is None:
+                min_iou = float("-inf")
+            if max_iou is None:
+                max_iou = float("inf")
 
+            # 最多进行尝试 50 次没有的话重新进行选择一次 mode
+            for _ in range(50):
+                current_image = image
 
+                # 随机选取在 0.3
+                w = random.uniform(0.3 * width, width)
+                h = random.uniform(0.3 * height, height)
+
+                # 论文中提及到长宽比要在 1/2 - 2 之间
+                if h/w < 0.5 or h/w > 2:
+                    continue
+
+                # 选取左上角的坐标
+                left = random.uniform(width-w)
+                top = random.uniform(height-h)
+
+                # 获取截取的形状
+                rect = np.array([int(left), int(top), int(left+w), int(top+h)])
+
+                # 计算IoU
+                overlap = jaccard_numpy(boxes, rect)
+
+                # 是否满足IoU的条件, 只要有任意一个物体被截取的不适当都不可以
+                if overlap.min() < min_iou and max_iou < overlap.max():
+                    continue
+
+                # 获取新的图片的范围
+                current_image = current_image[rect[1]:rect[3], rect[0]:rect[2], :]
+
+                # 计算中心坐标
+                centers = (boxes[:, :2] + boxes[:, 2:]) / 2.0
+
+                # 找到所有中心在 patch 中的 boxes 的 mask
+                m1 = (rect[0] < centers[:, 0]) * (rect[1] < centers[:, 1])
+                m2 = (rect[2] > centers[:, 0]) * (rect[3] > centers[:, 1])
+
+                mask = m1 * m2
+
+                # 如果没有一个box符合要求 就放弃这次的
+                if not mask.any():
+                    continue
+
+                current_boxes = boxes[mask, :].copy()
+
+                current_labels = labels[mask]
+
+                # 将左上和右下角坐标限制在 patch 的范围之内
+                current_boxes[:, :2] = np.maximum(current_boxes[:, :2], rect[:2])
+                current_boxes[:, 2:] = np.minimum(current_boxes[:, 2:], rect[2:])
+
+                # 将坐标减去 patch 在原图的左上角坐标 -> 使得能够最后协调到调整后的位置上
+                current_boxes[:, :2] -= rect[:2]
+                current_boxes[:, 2:] -= rect[:2]
+
+                return current_image, current_boxes, current_labels
