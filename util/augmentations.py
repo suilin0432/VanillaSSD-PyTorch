@@ -192,6 +192,9 @@ class ConvertColor(object):
 
 
 class RandomContrast(object):
+    """
+        进行随机乘法加权
+    """
     def __init__(self, lower=0.5, upper=1.5):
         self.lower = lower
         self.upper = upper
@@ -323,3 +326,115 @@ class RandomSampleCrop(object):
                 current_boxes[:, 2:] -= rect[:2]
 
                 return current_image, current_boxes, current_labels
+
+class Expand(object):
+    """
+        用平均图的值进行expand操作 填充空白的区域
+        这个操作是使用的那个 为了训练检测小物体能力而使用的 先将图片的目标尺寸放大,
+        然后用一个平均图进行填充, 然后将image放入到一个随机的位置中, 然后会在后面的步骤中进行图片的缩放
+    """
+    def __init__(self, mean):
+        self.mean = mean
+
+    def __call__(self, image, boxes, labels):
+        if random.randint(2):
+            return image, boxes, labels
+
+        height, width, depth = image.shape
+        ratio = random.uniform(1, 4)
+        left = random.uniform(0, width*ratio - width)
+        top = random.uniform(0, height*ratio - height)
+        expand_image = np.zeros( (int(height*ratio), int(width*ratio), depth), dtype=image.dtype)
+        expand_image[:, :, :] = self.mean
+        expand_image[int(top):int(top + height), int(left):int(left+width)] = image
+        image =expand_image
+        boxes = boxes.copy()
+        boxes[:, :2] += (int(left), int(top))
+        boxes[:, 2:] += (int(left), int(top))
+
+        return image, boxes, labels
+
+class RandomMirror(object):
+    """
+        将图像镜像反转
+    """
+    def __call__(self, image, boxes, classes):
+        _, width, _ = image.shape
+        if random.randint(2):
+            image = image[:, ::-1]
+            boxes = boxes.copy()
+            boxes[:, 0::2] = width - boxes[:, 2::-2]
+
+class SwapChannels(object):
+    """
+        进行 channel 的转换
+    """
+    def __init__(self, swaps):
+        self.swaps = swaps
+
+    def __call__(self, image):
+        image = image[:, :, self.swaps]
+        return image
+
+class PhotometricDistort(object):
+    """
+        光度畸变... 说实话不是很明白其中的那个 rand_light_noise 为什么要交换channel
+        其实仔细想想就是切换了一下通道改变了一下色彩->使得对色彩畸变的鲁棒性更好???
+    """
+    def __int__(self):
+        self.pd = [
+            RandomContrast(),
+            # 将image 从BGR->HSV
+            ConvertColor(transforms="HSV"),
+            # 进行随机饱和度的变换
+            RandomSaturation(),
+            # 进行随机色相的变换
+            RandomHue(),
+            # 再次将iamge 从HSV->BGR
+            ConvertColor(current="HSV", transforms="BGR"),
+            RandomContrast()
+        ]
+        self.rand_brightness = RandomBrightness()
+        self.rand_light_noise = RandomLightingNoise()
+
+    def __call__(self, image, boxes, labels):
+        im = image.copy()
+        im, boxes, labels = self.rand_brightness(im, boxes, labels)
+        if random.rand(2):
+            distort = Compose(self.pd[:-1])
+        else:
+            distort = Compose(self.pd[1:])
+        im, boxes, labels = distort(im, boxes, labels)
+        return self.rand_light_noise(im, boxes, labels)
+
+class SSDAugmentation(object):
+    """
+        从上到下:
+            1. 将图片的格式变为 float
+            2. 将坐标从相对坐标改为绝对坐标
+            (因为在取出来坐标的时候VOCAnnotationTransform进行了一次标签的从绝对坐标到相对坐标的变换)
+            3. 光度畸变
+            4. Zoom-off
+            5. 随机Crop
+            6. 随机镜像
+            7. 将坐标从绝对坐标改为相对坐标
+            8. Resize
+            9. 减去平均图
+    """
+    def __init__(self, size=300, mean=(104, 117, 123)):
+        self.mean = mean
+        self.size = size
+        self.augment = Compose([
+            ConvertFromInts(),
+            ToAbsoluteCoords(),
+            PhotometricDistort(),
+            Expand(self.mean),
+            RandomSampleCrop(),
+            RandomMirror(),
+            ToPercentCoords(),
+            Resize(self.size),
+            SubtractMeans(self.mean)
+        ])
+
+    def __call__(self, img, boxes, labels):
+        return self.augment(img, boxes, labels)

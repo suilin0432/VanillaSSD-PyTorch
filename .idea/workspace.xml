@@ -43,7 +43,7 @@
         <entry file="file://$PROJECT_DIR$/util/augmentations.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="439">
-              <caret line="317" column="16" lean-forward="false" selection-start-line="317" selection-start-column="16" selection-end-line="317" selection-end-column="16" />
+              <caret line="427" column="51" lean-forward="false" selection-start-line="427" selection-start-column="51" selection-end-line="427" selection-end-column="51" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -82,7 +82,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>gamma</find>
       <find>expand</find>
       <find>transpose</find>
       <find>self.priors</find>
@@ -112,6 +111,7 @@
       <find>gt</find>
       <find>.gt</find>
       <find>num_class</find>
+      <find>HSV</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -851,7 +851,7 @@
     <entry file="file://$PROJECT_DIR$/util/augmentations.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="439">
-          <caret line="317" column="16" lean-forward="false" selection-start-line="317" selection-start-column="16" selection-end-line="317" selection-end-column="16" />
+          <caret line="427" column="51" lean-forward="false" selection-start-line="427" selection-start-column="51" selection-end-line="427" selection-end-column="51" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>
