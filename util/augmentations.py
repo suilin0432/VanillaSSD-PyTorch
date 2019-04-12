@@ -28,7 +28,7 @@ def jaccard_numpy(box_a, box_b):
 
 class Compose(object):
     """
-        作用是将多个 augument 操作进行合并
+        作用是将多个 augmentation 操作进行合并
         源代码给的Examples:
         >>> augmentations.Compose([
         >>>     transforms.CenterCrop(10),
@@ -231,7 +231,7 @@ class ToTensor(object):
     def __call__(self, cvimage, boxes=None, labels=None):
         return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1), boxes, labels
 
-# 最终要的augument操作部分
+# 最终要的augment操作部分
 class RandomSampleCrop(object):
     """
         Crop操作
