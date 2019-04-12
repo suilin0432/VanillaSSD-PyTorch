@@ -1,6 +1,6 @@
 from data import *
 # TODO: 变换是要进一步完成的内容
-# from util.argumentations import SSDAugmentation
+from util import SSDAugmentation
 from layers.modules import MultiBoxLoss
 from SSDModel import build_ssd
 import os
@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(description="Training for VanillaSSD-Pytorch")
 parser.add_argument("--dataset", default="VOC", choices=["VOC", "COCO"], type=str, help="指定的数据集,用来指定加载的数据集到底是什么")
 parser.add_argument("--dataset_root", default=VOC_ROOT, help="数据集的根目录地址")
 parser.add_argument("--basenet", default="vgg16_reducedfc.pth", help="预训练网络参数的权重文件")
-parser.add_argument("--batch_size", default=32, type=int, help="训练所采用的batch_size")
+parser.add_argument("--batch_size", default=2, type=int, help="训练所采用的batch_size")
 parser.add_argument("--resume", default=None, type=str, help="从一次训练的中途进行参数文件的读取")
 parser.add_argument("--start_iter", default=0, type=int, help="resume的时候进行的iter数目")
 parser.add_argument("--num_workers", default=4, type=int, help="进行图片数据加载的时候使用的线程数量")
@@ -61,7 +61,7 @@ def train():
         # TODO: 这里的SSDAugmentation还没有完成...
         # PS: cfg["min_dim"] 表示的图片的大小尺度
         # dataset = VOCDetection(root=args.dataset_root, transform=SSDAugmentation(cfg["min_dim"], MEANS))
-        dataset = VOCDetection(root=args.dataset_root, image_sets=[("2007", "trainval")])
+        dataset = VOCDetection(root=args.dataset_root, image_sets=[("2007", "trainval")], transform=SSDAugmentation(cfg["min_dim"], MEANS))
 
     # 可视化工具的初始化
     if args.visdom:
@@ -168,16 +168,18 @@ def train():
         # 更新
         optimizer.step()
         t1 = time.time()
-        # PS: 这个 [0] 要看一下为什么取 0
-        loc_loss += loss_l.data[0]
-        conf_loss += loss_c.data[0]
-
+        # PS: 这个 [0] 要看一下为什么取 0 -> 不需要 应该是旧版本的要求. 1.0并不可以这么做
+        loc_loss += loss_l.data
+        conf_loss += loss_c.data
+        print("\n")
+        print(iteration, loss_l, loss_c)
+        print("\n")
         if iteration % 10 == 0:
             print("timer: %.4f sec." % (t1 - t0))
-            print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
+            print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data), end=' ')
 
         if args.visdom:
-            update_vis_plot(viz, iteration, loss_l.data[0], loss_c.data[0], iter_plot, epoch_plot, "append")
+            update_vis_plot(viz, iteration, loss_l.data, loss_c.data, iter_plot, epoch_plot, "append")
 
         # 每 500 个 iteration 进行一次参数信息的保存
         if iteration != 0 and iteration % 5000 == 0:

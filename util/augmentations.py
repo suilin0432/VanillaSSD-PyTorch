@@ -14,7 +14,7 @@ def intersect(box_a, box_b):
     max_xy = np.minimum(box_a[:, 2:], box_b[2:])
     min_xy = np.maximum(box_a[:, :2], box_b[:2])
     inter = np.clip((max_xy - min_xy), a_min=0, a_max=np.inf)
-    return inter[:, 0] * int[:, 1]
+    return inter[:, 0] * inter[:, 1]
 
 # 计算IoU
 def jaccard_numpy(box_a, box_b):
@@ -364,6 +364,7 @@ class RandomMirror(object):
             image = image[:, ::-1]
             boxes = boxes.copy()
             boxes[:, 0::2] = width - boxes[:, 2::-2]
+        return image, boxes, classes
 
 class SwapChannels(object):
     """
@@ -381,17 +382,17 @@ class PhotometricDistort(object):
         光度畸变... 说实话不是很明白其中的那个 rand_light_noise 为什么要交换channel
         其实仔细想想就是切换了一下通道改变了一下色彩->使得对色彩畸变的鲁棒性更好???
     """
-    def __int__(self):
+    def __init__(self):
         self.pd = [
             RandomContrast(),
             # 将image 从BGR->HSV
-            ConvertColor(transforms="HSV"),
+            ConvertColor(transform="HSV"),
             # 进行随机饱和度的变换
             RandomSaturation(),
             # 进行随机色相的变换
             RandomHue(),
             # 再次将iamge 从HSV->BGR
-            ConvertColor(current="HSV", transforms="BGR"),
+            ConvertColor(current="HSV", transform="BGR"),
             RandomContrast()
         ]
         self.rand_brightness = RandomBrightness()
@@ -400,7 +401,7 @@ class PhotometricDistort(object):
     def __call__(self, image, boxes, labels):
         im = image.copy()
         im, boxes, labels = self.rand_brightness(im, boxes, labels)
-        if random.rand(2):
+        if random.randint(2):
             distort = Compose(self.pd[:-1])
         else:
             distort = Compose(self.pd[1:])
