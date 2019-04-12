@@ -189,3 +189,69 @@ class ConvertColor(object):
         else:
             raise NotImplementedError
         return image, boxes, labels
+
+
+class RandomContrast(object):
+    def __init__(self, lower=0.5, upper=1.5):
+        self.lower = lower
+        self.upper = upper
+        assert self.upper >= self.lower, "contrast upper must be >= lower."
+        assert self.lower >= 0, "contrast lower must be non-negative."
+
+    # expects float image
+    def __call__(self, image, boxes=None, labels=None):
+        if random.randint(2):
+            alpha = random.uniform(self.lower, self.upper)
+            image *= alpha
+        return image, boxes, labels
+
+class RandomBrightness(object):
+    def __init__(self, delta=32):
+        assert delta >= 0.0
+        assert delta <= 255.0
+        self.delta = delta
+
+    def __call__(self, image, boxes=None, labels=None):
+        if random.randint(2):
+            delta = random.uniform(-self.delta, self.delta)
+            image += delta
+        return image, boxes, labels
+
+
+class ToCV2Image(object):
+    def __call__(self, tensor, boxes=None, labels=None):
+        return tensor.cpu().numpy().astype(np.float32).transpose((1, 2, 0)), boxes, labels
+
+
+class ToTensor(object):
+    # 从 opencv 读取的 height, width, channel 的形式变为 torch.Tensor的 channel, height, width形式
+    def __call__(self, cvimage, boxes=None, labels=None):
+        return torch.from_numpy(cvimage.astype(np.float32)).permute(2, 0, 1), boxes, labels
+
+# 最终要的augument操作部分
+class RandomSampleCrop(object):
+    """
+        Crop操作
+        Arguments:
+            img: (Image)要用来进行训练的图片
+            boxes: (Tensor): GT box的坐标
+            labels: (Tensor): GT box的类别标号
+            mode(float tuple): 选择的jaccard overlaps的大小
+    """
+    def __init__(self):
+        self.sample_options=(
+            # 不对图片进行任何操作
+            None,
+            # crop 一个 patch 使其最小的 jaccard overlaps w/obj 是 0.1, 0.3 0.5, 0.7, 0.9
+            # PS: 原来的实现中没有0.5这个选项, 但是论文中是有的
+            (0.1, None),
+            (0.3, None),
+            (0.5, None),
+            (0.7, None),
+            (0.9, None),
+            # 随机选取一个patch
+            (None, None)
+        )
+
+
+
